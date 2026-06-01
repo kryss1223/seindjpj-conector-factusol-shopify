@@ -16,5 +16,15 @@ class Settings(BaseSettings):
     shopify_shop_domain: str | None = None
     shopify_api_version: str = "2026-04"
 
+    factusol_base_url: str | None = None
+    factusol_login_path: str = "/login/autenticar"
+    factusol_codigo_fabricante: int | None = None
+    factusol_codigo_cliente: int | None = None
+    factusol_base_datos_cliente: str | None = None
+    factusol_password_b64: str | None = None
+    factusol_read_only: bool = True
+    factusol_query_path: str = "/admin/LanzarConsulta"
+    factusol_fiscal_year: str = "2026"
+
 
 settings = Settings()
