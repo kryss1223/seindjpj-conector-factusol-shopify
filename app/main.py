@@ -21,8 +21,9 @@ def root():
         "message": "Shopify FactuSOL Connector API running",
     }
 
-
-app.include_router(debug_factusol_router)
 app.include_router(health_router)
-app.include_router(shopify_webhooks_router)
+app.include_router(debug_factusol_router)
 app.include_router(debug_shopify_router)
+app.include_router(shopify_webhooks_router)
+
+
