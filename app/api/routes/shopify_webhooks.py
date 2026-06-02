@@ -72,9 +72,9 @@ async def orders_create(request: Request):
         }
 
     validation_result = validate_customer_against_factusol_lookup(
-    customer=normalized_customer,
-    factusol_lookup=factusol_lookup,
-)
+        customer=normalized_customer,
+        factusol_lookup=factusol_lookup,
+    )
 
     logger.info("Shopify orders/create received")
     logger.info("Order ID: %s", shopify_payload.id)
@@ -91,7 +91,7 @@ async def orders_create(request: Request):
         "financial_status": shopify_payload.financial_status,
         "normalized_customer": normalized_customer.model_dump(),
         "factusol_lookup": factusol_lookup,
-        "line_items_count": len(shopify_payload.line_items),
         "customer_validation": validation_result,
+        "line_items_count": len(shopify_payload.line_items),
     }
 
