@@ -22,8 +22,9 @@ class Settings(BaseSettings):
     factusol_codigo_cliente: int | None = None
     factusol_base_datos_cliente: str | None = None
     factusol_password_b64: str | None = None
-    factusol_read_only: bool = True
+    factusol_read_only: bool = False
     factusol_query_path: str = "/admin/LanzarConsulta"
+    factusol_write_path: str = "/admin/EscribirRegistro"
     factusol_fiscal_year: str = "2026"
 
 

@@ -1,6 +1,8 @@
 from typing import Any
 
 from app.services.factusol_api_service import FactusolApiService
+from app.schemas.normalized_customer import NormalizedCustomer
+from app.services.factusol_write_service import FactusolWriteService
 
 
 class FactusolCustomerService:
@@ -13,6 +15,7 @@ class FactusolCustomerService:
 
     def __init__(self) -> None:
         self.api = FactusolApiService()
+        self.writer = FactusolWriteService()
 
     async def get_customers_sample(self) -> dict[str, Any]:
         """
@@ -148,3 +151,165 @@ class FactusolCustomerService:
         """
 
         return value.strip().replace("'", "''")
+    
+
+    async def create_online_customer(
+        self,
+        customer: NormalizedCustomer,
+    ) -> dict[str, Any]:
+        """
+        Crea un cliente nuevo online en FactuSOL.
+
+        Importante:
+        - Solo debe llamarse cuando la validación haya devuelto factusol_new_online.
+        - Antes de crear, vuelve a comprobar que el NIF/CIF no existe.
+        """
+
+        if not customer.fiscal_id:
+            raise ValueError("Cannot create FactuSOL customer without fiscal_id")
+
+        existing_customer = await self.get_customer_by_fiscal_id(customer.fiscal_id)
+
+        if existing_customer.get("found"):
+            return {
+                "created": False,
+                "reason": "Customer already exists in FactuSOL",
+                "customer": existing_customer.get("customer"),
+            }
+
+        next_customer_code = await self.get_next_customer_code()
+
+        record = self._map_normalized_customer_to_factusol_record(
+            customer=customer,
+            customer_code=next_customer_code,
+        )
+
+        write_result = await self.writer.write_record(
+            table="F_CLI",
+            record=record,
+        )
+
+        created_lookup = await self.get_customer_by_fiscal_id(customer.fiscal_id)
+
+        return {
+            "created": True,
+            "factusol_customer_code": next_customer_code,
+            "write_result": write_result,
+            "created_customer_lookup": created_lookup,
+        }
+
+
+    async def get_next_customer_code(self) -> int:
+        consulta = """
+        SELECT TOP 1 CODCLI
+        FROM F_CLI
+        ORDER BY CODCLI DESC
+        """
+
+        result = await self.api.launch_select_query(consulta)
+        normalized_result = self._normalize_query_result(result)
+
+        records = normalized_result["factusol_response"]["records"]
+
+        if not records:
+            return 1
+
+        last_code = records[0].get("CODCLI")
+
+        if last_code is None:
+            return 1
+
+        return int(last_code) + 1
+
+
+    def _map_normalized_customer_to_factusol_record(
+        self,
+        customer: NormalizedCustomer,
+        customer_code: int,
+    ) -> list[dict[str, Any]]:
+        """
+        Mapea NormalizedCustomer a columnas conocidas de F_CLI.
+
+        Solo usamos columnas ya inspeccionadas/confirmadas.
+        """
+
+        return self._remove_empty_values([
+            {
+                "columna": "CODCLI",
+                "dato": customer_code,
+            },
+            {
+                "columna": "NIFCLI",
+                "dato": customer.fiscal_id,
+            },
+            {
+                "columna": "NOFCLI",
+                "dato": customer.fiscal_name,
+            },
+            {
+                "columna": "NOCCLI",
+                "dato": customer.commercial_name or customer.fiscal_name,
+            },
+            {
+                "columna": "DOMCLI",
+                "dato": customer.fiscal_address,
+            },
+            {
+                "columna": "POBCLI",
+                "dato": customer.fiscal_city,
+            },
+            {
+                "columna": "CPOCLI",
+                "dato": customer.fiscal_postal_code,
+            },
+            {
+                "columna": "PROCLI",
+                "dato": customer.fiscal_province,
+            },
+            {
+                "columna": "TELCLI",
+                "dato": customer.phone,
+            },
+            {
+                "columna": "MOVCLI",
+                "dato": customer.mobile_phone or customer.phone,
+            },
+            {
+                "columna": "PCOCLI",
+                "dato": customer.contact_person,
+            },
+            {
+                "columna": "EMACLI",
+                "dato": customer.email,
+            },
+            {
+                "columna": "BANCLI",
+                "dato": customer.bank_name,
+            },
+            {
+                "columna": "SWFCLI",
+                "dato": customer.iban,
+            },
+        ])
+
+
+    @staticmethod
+    def _remove_empty_values(record: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        Evita mandar columnas con None o string vacío.
+        """
+
+        cleaned_record = []
+
+        for item in record:
+            value = item.get("dato")
+
+            if value is None:
+                continue
+
+            if isinstance(value, str) and value.strip() == "":
+                continue
+
+            cleaned_record.append(item)
+
+        return cleaned_record
