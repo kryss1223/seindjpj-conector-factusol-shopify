@@ -7,6 +7,8 @@ from app.schemas.shopify_order import ShopifyOrderPayload
 from app.services.shopify_order_normalizer import normalize_shopify_order_customer
 from app.services.factusol_customer_service import FactusolCustomerService
 from app.services.customer_validation_service import validate_customer_against_factusol_lookup
+from app.services.order_product_validation_service import validate_order_products_against_factusol
+
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,50 @@ async def orders_create(request: Request):
         factusol_lookup=factusol_lookup,
     )
 
+    customer_action_result = None
+    product_validation = await validate_order_products_against_factusol(shopify_payload)
+
+    if validation_result["status"] == "factusol_existing_verified":
+        customer_action_result = {
+            "action": "use_existing_factusol_customer",
+            "factusol_customer_code": validation_result.get("factusol_customer_code"),
+            "created": False,
+        }
+
+    elif validation_result["status"] == "factusol_new_online":
+        factusol_customer_service = FactusolCustomerService()
+        customer_action_result = await factusol_customer_service.create_online_customer(
+            normalized_customer
+        )
+
+    else:
+        customer_action_result = {
+            "action": "manual_review_required",
+            "created": False,
+            "reason": validation_result.get("reason"),
+            "status": validation_result.get("status"),
+        }
+
+        customer_ready = customer_action_result and (
+    customer_action_result.get("factusol_customer_code") is not None
+    )
+
+    products_ready = product_validation.get("status") == "products_verified"
+
+    factusol_order_readiness = {
+        "ready": customer_ready and products_ready,
+        "customer_ready": customer_ready,
+        "products_ready": products_ready,
+        "factusol_customer_code": customer_action_result.get("factusol_customer_code")
+        if customer_action_result
+        else None,
+        "next_action": (
+            "create_factusol_customer_order"
+            if customer_ready and products_ready
+            else "manual_review_required"
+        ),
+    }
+
     logger.info("Shopify orders/create received")
     logger.info("Order ID: %s", shopify_payload.id)
     logger.info("Order name: %s", shopify_payload.name)
@@ -92,6 +138,9 @@ async def orders_create(request: Request):
         "normalized_customer": normalized_customer.model_dump(),
         "factusol_lookup": factusol_lookup,
         "customer_validation": validation_result,
+        "customer_action_result": customer_action_result,
+        "product_validation": product_validation,
+        "factusol_order_readiness": factusol_order_readiness,
         "line_items_count": len(shopify_payload.line_items),
     }
 
