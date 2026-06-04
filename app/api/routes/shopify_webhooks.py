@@ -8,7 +8,7 @@ from app.services.shopify_order_normalizer import normalize_shopify_order_custom
 from app.services.factusol_customer_service import FactusolCustomerService
 from app.services.customer_validation_service import validate_customer_against_factusol_lookup
 from app.services.order_product_validation_service import validate_order_products_against_factusol
-
+from app.services.factusol_order_service import FactusolOrderService
 
 logger = logging.getLogger(__name__)
 
@@ -102,12 +102,24 @@ async def orders_create(request: Request):
             "status": validation_result.get("status"),
         }
 
-        customer_ready = customer_action_result and (
-    customer_action_result.get("factusol_customer_code") is not None
+    factusol_order_result = None
+
+    customer_ready = (
+        isinstance(customer_action_result, dict)
+        and customer_action_result.get("factusol_customer_code") is not None
     )
 
-    products_ready = product_validation.get("status") == "products_verified"
-
+    products_ready = (
+        isinstance(product_validation, dict)
+        and product_validation.get("status") == "products_verified"
+    )
+    
+    factusol_order_result = {
+        "created": False,
+        "reason": "Customer or products are not ready for FactuSOL order creation.",
+        "customer_ready": customer_ready,
+        "products_ready": products_ready,
+    }
     factusol_order_readiness = {
         "ready": customer_ready and products_ready,
         "customer_ready": customer_ready,
@@ -141,6 +153,7 @@ async def orders_create(request: Request):
         "customer_action_result": customer_action_result,
         "product_validation": product_validation,
         "factusol_order_readiness": factusol_order_readiness,
+        "factusol_order_result": factusol_order_result,
         "line_items_count": len(shopify_payload.line_items),
     }
 

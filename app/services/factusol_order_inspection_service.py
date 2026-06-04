@@ -102,6 +102,39 @@ class FactusolOrderInspectionService:
 
         result = await self.api.launch_select_query(consulta)
         return self._normalize_query_result(result)
+    
+    async def get_table_sample(self, table_name: str, limit: int = 5) -> dict[str, Any]:
+        """
+        Inspecciona una tabla concreta de FactuSOL.
+
+        Útil para probar tablas candidatas:
+        - F_PCL
+        - F_LPC
+        - F_PED
+        - F_LPED
+        - F_ART
+        """
+
+        clean_table_name = self._clean_table_name(table_name)
+        safe_limit = self._clean_limit(limit)
+
+        consulta = f"""
+        SELECT TOP {safe_limit} *
+        FROM {clean_table_name}
+        """
+
+        result = await self.api.launch_select_query(consulta)
+        return self._normalize_query_result(result)
+    
+    async def get_customer_order_by_code(self, order_code: int) -> dict[str, Any]:
+        consulta = f"""
+        SELECT TOP 1 *
+        FROM F_PCL
+        WHERE CODPCL = {order_code}
+        """
+
+        result = await self.api.launch_select_query(consulta)
+        return self._normalize_query_result(result)
 
     def _normalize_query_result(self, result: dict[str, Any]) -> dict[str, Any]:
         response = result.get("response", {})
@@ -158,3 +191,29 @@ class FactusolOrderInspectionService:
                 raise ValueError(f"Invalid character in table name: {char}")
 
         return clean_value
+    
+    @staticmethod
+    def _clean_table_name(table_name: str) -> str:
+        clean_table_name = table_name.strip().upper()
+
+        if not clean_table_name.startswith("F_"):
+            raise ValueError("Only FactuSOL tables starting with F_ are allowed")
+
+        forbidden_chars = [";", " ", "'", '"', "-", "/", "\\"]
+
+        for char in forbidden_chars:
+            if char in clean_table_name:
+                raise ValueError(f"Invalid character in table name: {char}")
+
+        return clean_table_name
+
+
+    @staticmethod
+    def _clean_limit(limit: int) -> int:
+        if limit <= 0:
+            return 5
+
+        if limit > 50:
+            return 50
+
+        return limit
