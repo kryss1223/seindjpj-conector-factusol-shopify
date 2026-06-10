@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     factusol_write_path: str = "/admin/EscribirRegistro"
     factusol_fiscal_year: str = "2026"
 
+    admin_debug_token: str | None = None
     enable_debug_routes: bool = False
     debug_responses: bool = False
     database_url: str | None = None

@@ -3,6 +3,7 @@ import logging
 from fastapi import FastAPI
 
 from app.api.routes.health import router as health_router
+from app.api.routes.admin_idempotency import router as admin_idempotency_router
 from app.api.routes.shopify_webhooks import router as shopify_webhooks_router
 from app.core.config import settings
 
@@ -26,6 +27,9 @@ def root():
 app.include_router(health_router)
 app.include_router(shopify_webhooks_router)
 
+if settings.admin_debug_token and settings.environment != "production":
+    app.include_router(admin_idempotency_router)
+
 if settings.enable_debug_routes and settings.environment != "production":
     try:
         from app.api.routes.debug_factusol import router as debug_factusol_router
@@ -35,5 +39,3 @@ if settings.enable_debug_routes and settings.environment != "production":
         app.include_router(debug_shopify_router)
     except ModuleNotFoundError:
         logger.warning("Debug routes are enabled but debug route modules are not present")
-
-
