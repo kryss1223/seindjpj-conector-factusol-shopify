@@ -5,6 +5,7 @@ Hay que crear un router con prefijo y la funcion al crear
 nuevas rutas como: 
 /webhooks/shopify/customers-create
 /webhooks/shopify/orders-create
+/webhooks/shopify/orders-paid
 /sync/customer
 /admin/retry-event
 

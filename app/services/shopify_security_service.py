@@ -9,8 +9,13 @@ def verify_shopify_hmac(raw_body: bytes, received_hmac: str | None) -> bool:
     if not received_hmac:
         return False
 
+    secret = settings.shopify_webhook_secret or settings.shopify_api_secret
+
+    if not secret:
+        return False
+
     digest = hmac.new(
-        key=settings.shopify_api_secret.encode("utf-8"),
+        key=secret.encode("utf-8"),
         msg=raw_body,
         digestmod=hashlib.sha256
     ).digest()

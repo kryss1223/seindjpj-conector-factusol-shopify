@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     shopify_client_id: str | None = None
     shopify_api_secret: str | None = None
+    shopify_webhook_secret: str | None = None
     shopify_access_token: str | None = None
     shopify_shop_domain: str | None = None
     shopify_api_version: str = "2026-04"
@@ -26,6 +27,11 @@ class Settings(BaseSettings):
     factusol_query_path: str = "/admin/LanzarConsulta"
     factusol_write_path: str = "/admin/EscribirRegistro"
     factusol_fiscal_year: str = "2026"
+
+    enable_debug_routes: bool = False
+    debug_responses: bool = False
+    database_url: str | None = None
+    sqlite_idempotency_path: str = "data/idempotency.db"
 
 
 settings = Settings()
