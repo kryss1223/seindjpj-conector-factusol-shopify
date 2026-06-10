@@ -163,6 +163,7 @@ class FactusolCustomerService:
         Importante:
         - Solo debe llamarse cuando la validación haya devuelto factusol_new_online.
         - Antes de crear, vuelve a comprobar que el NIF/CIF no existe.
+        - Después de escribir, valida que FactuSOL haya respondido OK y que el cliente exista.
         """
 
         if not customer.fiscal_id:
@@ -171,9 +172,14 @@ class FactusolCustomerService:
         existing_customer = await self.get_customer_by_fiscal_id(customer.fiscal_id)
 
         if existing_customer.get("found"):
+            existing_customer_code = (
+                existing_customer.get("customer", {}) or {}
+            ).get("CODCLI")
+
             return {
                 "created": False,
                 "reason": "Customer already exists in FactuSOL",
+                "factusol_customer_code": existing_customer_code,
                 "customer": existing_customer.get("customer"),
             }
 
@@ -189,15 +195,44 @@ class FactusolCustomerService:
             record=record,
         )
 
+        response = write_result.get("response")
+
+        write_ok = (
+            isinstance(response, dict)
+            and response.get("respuesta") == "OK"
+        )
+
+        if not write_ok:
+            return {
+                "created": False,
+                "reason": "FactuSOL rejected customer creation.",
+                "factusol_customer_code": None,
+                "attempted_customer_code": next_customer_code,
+                "write_result": write_result,
+            }
+
         created_lookup = await self.get_customer_by_fiscal_id(customer.fiscal_id)
+
+        if not created_lookup.get("found"):
+            return {
+                "created": False,
+                "reason": "Customer write returned OK but customer was not found afterwards.",
+                "factusol_customer_code": None,
+                "attempted_customer_code": next_customer_code,
+                "write_result": write_result,
+                "created_customer_lookup": created_lookup,
+            }
+
+        created_customer_code = (
+            created_lookup.get("customer", {}) or {}
+        ).get("CODCLI") or next_customer_code
 
         return {
             "created": True,
-            "factusol_customer_code": next_customer_code,
+            "factusol_customer_code": created_customer_code,
             "write_result": write_result,
             "created_customer_lookup": created_lookup,
         }
-
 
     async def get_next_customer_code(self) -> int:
         consulta = """

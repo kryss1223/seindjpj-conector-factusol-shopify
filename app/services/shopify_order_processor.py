@@ -145,6 +145,12 @@ class ShopifyOrderProcessor:
                 "shopify_order_name": payload.name,
                 "customer_ready": customer_ready,
                 "products_ready": products_ready,
+                "customer_validation_status": validation_result.get("status"),
+                "customer_validation_reason": validation_result.get("reason"),
+                "product_validation_status": product_validation.get("status"),
+                "product_items_count": product_validation.get("items_count"),
+                "customer_action_result": customer_action_result,
+                "product_validation": product_validation,
             }
 
         order_service = FactusolOrderService()
