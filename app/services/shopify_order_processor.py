@@ -57,7 +57,7 @@ class ShopifyOrderProcessor:
             elif result.get("status") == "manual_review_required":
                 idempotency.mark_manual_review(
                     shopify_order_id=str(payload.id),
-                    error_message=result.get("reason"),
+                    error_message=self._build_manual_review_error_message(result),
                 )
             else:
                 idempotency.mark_failed(
@@ -145,10 +145,15 @@ class ShopifyOrderProcessor:
                 "shopify_order_name": payload.name,
                 "customer_ready": customer_ready,
                 "products_ready": products_ready,
+
+                # Resumen rápido
                 "customer_validation_status": validation_result.get("status"),
                 "customer_validation_reason": validation_result.get("reason"),
                 "product_validation_status": product_validation.get("status"),
                 "product_items_count": product_validation.get("items_count"),
+
+                # Detalle real para diagnóstico
+                "customer_validation": validation_result,
                 "customer_action_result": customer_action_result,
                 "product_validation": product_validation,
             }
@@ -205,7 +210,81 @@ class ShopifyOrderProcessor:
             "reason": validation_result.get("reason"),
             "status": validation_result.get("status"),
         }
+    @staticmethod
+    def _build_manual_review_error_message(result: dict[str, Any]) -> str:
+        parts = []
 
+        reason = result.get("reason")
+        if reason:
+            parts.append(f"reason={reason}")
+
+        if "customer_ready" in result:
+            parts.append(f"customer_ready={result.get('customer_ready')}")
+
+        if "products_ready" in result:
+            parts.append(f"products_ready={result.get('products_ready')}")
+
+        customer_validation = result.get("customer_validation") or {}
+        if isinstance(customer_validation, dict):
+            customer_status = customer_validation.get("status")
+            customer_reason = customer_validation.get("reason")
+            missing_fields = customer_validation.get("missing_fields")
+
+            if customer_status:
+                parts.append(f"customer_status={customer_status}")
+
+            if customer_reason:
+                parts.append(f"customer_reason={customer_reason}")
+
+            if missing_fields:
+                parts.append(f"missing_fields={missing_fields}")
+
+        customer_action_result = result.get("customer_action_result") or result.get("customer_action") or {}
+        if isinstance(customer_action_result, dict):
+            action_status = customer_action_result.get("status")
+            action_reason = customer_action_result.get("reason")
+            action = customer_action_result.get("action")
+
+            if action:
+                parts.append(f"customer_action={action}")
+
+            if action_status:
+                parts.append(f"customer_action_status={action_status}")
+
+            if action_reason:
+                parts.append(f"customer_action_reason={action_reason}")
+
+        product_validation = result.get("product_validation") or {}
+        if isinstance(product_validation, dict):
+            product_status = product_validation.get("status")
+            items = product_validation.get("items") or []
+
+            if product_status:
+                parts.append(f"product_status={product_status}")
+
+            bad_items = []
+
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+
+                item_status = item.get("status")
+
+                if item_status and item_status != "product_verified":
+                    bad_items.append({
+                        "sku": item.get("sku"),
+                        "title": item.get("title"),
+                        "status": item_status,
+                        "reason": item.get("reason"),
+                    })
+
+            if bad_items:
+                parts.append(f"bad_items={bad_items}")
+
+        if not parts:
+            return "Manual review required but no detailed reason was provided."
+
+        return " | ".join(str(part) for part in parts)
     @staticmethod
     def _plan_customer_action(validation_result: dict[str, Any]) -> dict[str, Any]:
         if validation_result["status"] == "factusol_existing_verified":
