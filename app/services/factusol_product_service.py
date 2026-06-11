@@ -18,17 +18,12 @@ class FactusolProductService:
         clean_code = self._clean_sql_value(product_code)
 
         consulta = f"""
-        SELECT TOP 1
-            CODART,
-            DESART,
-            DLAART,
-            EANART,
-            REFART,
-            PHAART,
-            PCOART,
-            STOART
-        FROM F_ART
-        WHERE CODART = '{clean_code}'
+            SELECT TOP 1 *
+            FROM F_ART
+            WHERE CODART = '{clean_code}'
+            OR REFART = '{clean_code}'
+            OR EQUART = '{clean_code}'
+            OR EANART = '{clean_code}'
         """
 
         result = await self.api.launch_select_query(consulta)
@@ -41,12 +36,22 @@ class FactusolProductService:
                 "found": False,
                 "product": None,
                 "raw_result": normalized_result,
+                "lookup_strategy": "CODART_OR_REFART_OR_EQUART_OR_EANART",
+                "searched_code": product_code,
             }
+
+        product = records[0]
 
         return {
             "found": True,
-            "product": records[0],
+            "product": product,
             "raw_result": normalized_result,
+            "lookup_strategy": "CODART_OR_REFART_OR_EQUART_OR_EANART",
+            "searched_code": product_code,
+            "matched_factusol_codart": product.get("CODART"),
+            "matched_factusol_refart": product.get("REFART"),
+            "matched_factusol_equart": product.get("EQUART"),
+            "matched_factusol_eanart": product.get("EANART"),
         }
 
     def _normalize_query_result(self, result: dict[str, Any]) -> dict[str, Any]:
