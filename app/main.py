@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from app.api.routes.health import router as health_router
 from app.api.routes.admin_idempotency import router as admin_idempotency_router
 from app.api.routes.shopify_webhooks import router as shopify_webhooks_router
+from app.api.routes.admin_reports import router as admin_reports_router
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ app.include_router(shopify_webhooks_router)
 
 if settings.admin_debug_token and settings.environment != "production":
     app.include_router(admin_idempotency_router)
+    app.include_router(admin_reports_router)
 
 if settings.enable_debug_routes and settings.environment != "production":
     try:
