@@ -55,7 +55,7 @@ class FactusolOrderFailureReportService:
             WHERE status IN ('manual_review_required', 'failed')
                OR (
                     status = 'processing'
-                    AND updated_at < CURRENT_TIMESTAMP - INTERVAL '30 minutes'
+                    AND updated_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
                )
             ORDER BY updated_at DESC
             LIMIT %s

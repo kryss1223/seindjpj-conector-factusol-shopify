@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.services.factusol_order_failure_report_service import (
     FactusolOrderFailureReportService,
 )
+from app.services.email_service import EmailService
 
 
 router = APIRouter(
@@ -51,6 +52,64 @@ def preview_factusol_order_failures_report(
         return {
             "ok": False,
             "error": "Could not build FactuSOL order failures report",
+            "exception_type": type(exc).__name__,
+            "exception_detail": str(exc),
+        }
+    
+
+
+@router.post("/factusol-order-failures/send")
+def send_factusol_order_failures_report(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    limit: int = Query(default=50, ge=1, le=200),
+    send_when_empty: bool = Query(default=False),
+) -> dict[str, Any]:
+    """
+    Genera y envía por email el reporte de pedidos no procesados en FactuSOL.
+
+    Por defecto, si no hay incidencias, no envía email.
+    """
+
+    _check_admin_token(x_admin_token)
+
+    try:
+        report_service = FactusolOrderFailureReportService()
+        report = report_service.build_report_preview(limit=limit)
+
+        if not report.get("ok"):
+            return report
+
+        count = report.get("count", 0)
+
+        if count == 0 and not send_when_empty:
+            return {
+                "ok": True,
+                "sent": False,
+                "reason": "No incidents found. Email was not sent.",
+                "count": 0,
+                "subject": report.get("subject"),
+                "body": report.get("body"),
+            }
+
+        email_service = EmailService()
+        email_result = email_service.send_plain_text_email(
+            subject=report["subject"],
+            body=report["body"],
+        )
+
+        return {
+            "ok": email_result.get("sent") is True,
+            "sent": email_result.get("sent") is True,
+            "count": count,
+            "subject": report.get("subject"),
+            "email_result": email_result,
+        }
+
+    except Exception as exc:
+        return {
+            "ok": False,
+            "sent": False,
+            "error": "Could not send FactuSOL order failures report",
             "exception_type": type(exc).__name__,
             "exception_detail": str(exc),
         }

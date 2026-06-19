@@ -34,5 +34,15 @@ class Settings(BaseSettings):
     database_url: str | None = None
     sqlite_idempotency_path: str = "data/idempotency.db"
 
+    report_email_enabled: bool = False
+    report_email_from: str | None = None
+    report_email_to: str | None = None
+
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+
 
 settings = Settings()
