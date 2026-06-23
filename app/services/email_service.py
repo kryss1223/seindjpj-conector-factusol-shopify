@@ -202,11 +202,12 @@ class EmailService:
         - Fecha generación
         - Resumen
         - Detalle de pedidos
-        - Acción recomendada
+        - Acción recomendada por pedido
 
         Elimina:
         - Bloque técnico 'Motivo detectado'
         - error_message largo con código/debug
+        - Bloque final 'ACCIONES GENERALES RECOMENDADAS'
         """
 
         lines = body.splitlines()
@@ -214,9 +215,17 @@ class EmailService:
 
         current_shopify_order_id: str | None = None
         skip_technical_reason = False
+        skip_general_actions = False
 
         for line in lines:
             stripped = line.strip()
+
+            if stripped == "ACCIONES GENERALES RECOMENDADAS":
+                skip_general_actions = True
+                continue
+
+            if skip_general_actions:
+                continue
 
             if stripped.startswith("Shopify order id:"):
                 current_shopify_order_id = stripped.replace("Shopify order id:", "").strip()

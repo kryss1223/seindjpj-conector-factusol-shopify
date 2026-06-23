@@ -42,24 +42,27 @@ class FactusolOrderFailureReportService:
 
         safe_limit = max(1, min(limit, 200))
 
-        query = """
-            SELECT
-                shopify_order_id,
-                shopify_order_name,
-                status,
-                factusol_order_code,
-                error_message,
-                created_at,
-                updated_at
-            FROM processed_shopify_orders
-            WHERE status IN ('manual_review_required', 'failed')
-               OR (
-                    status = 'processing'
-                    AND updated_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
-               )
-            ORDER BY updated_at DESC
-            LIMIT %s
-        """
+        query = query = """
+                SELECT
+                    shopify_order_id,
+                    shopify_order_name,
+                    status,
+                    factusol_order_code,
+                    error_message,
+                    created_at,
+                    updated_at
+                FROM processed_shopify_orders
+                WHERE updated_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                AND (
+                        status IN ('manual_review_required', 'failed')
+                        OR (
+                            status = 'processing'
+                            AND updated_at < CURRENT_TIMESTAMP - INTERVAL '30 minutes'
+                        )
+                )
+                ORDER BY updated_at DESC
+                LIMIT %s
+            """
 
         with psycopg.connect(self.database_url, row_factory=dict_row) as connection:
             with connection.cursor() as cursor:
