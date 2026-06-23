@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     factusol_login_path: str = "/login/autenticar"
     factusol_codigo_fabricante: int | None = None
     factusol_codigo_cliente: int | None = None
-    factusol_baseS_datos_cliente: str | None = None
+    factusol_base_datos_cliente: str | None = None
     factusol_password_b64: str | None = None
     factusol_read_only: bool = False
     factusol_query_path: str = "/admin/LanzarConsulta"
