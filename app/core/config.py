@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     shopify_client_id: str | None = None
     shopify_api_secret: str | None = None
+    shopify_admin_order_base_url: str | None = None
     shopify_webhook_secret: str | None = None
     shopify_access_token: str | None = None
     shopify_shop_domain: str | None = None
