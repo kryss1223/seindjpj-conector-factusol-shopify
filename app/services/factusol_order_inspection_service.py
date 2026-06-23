@@ -5,7 +5,7 @@ from app.services.factusol_api_service import FactusolApiService
 
 class FactusolOrderInspectionService:
     """
-    Servicio temporal para inspeccionar estructura real de pedidos,
+    Servicio  para inspeccionar estructura real de pedidos,
     líneas de pedido, artículos y stock en FactuSOL.
 
     Solo lectura.

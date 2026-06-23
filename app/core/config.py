@@ -36,13 +36,12 @@ class Settings(BaseSettings):
 
     report_email_enabled: bool = False
     report_email_from: str | None = None
+    report_email_from_name: str = "SEIND Shopify Reports"
     report_email_to: str | None = None
 
-    smtp_host: str | None = None
-    smtp_port: int = 587
-    smtp_user: str | None = None
-    smtp_password: str | None = None
-    smtp_use_tls: bool = True
+    mailjet_api_key: str | None = None
+    mailjet_secret_key: str | None = None
+    mailjet_api_url: str = "https://api.mailjet.com/v3.1/send"
 
 
 settings = Settings()
