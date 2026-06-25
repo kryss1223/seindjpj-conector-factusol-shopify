@@ -243,7 +243,23 @@ class FactusolCustomerService:
             return 1
 
         return int(last_code) + 1
-    
+    @staticmethod
+    def _normalize_fiscal_id(fiscal_id: str | None) -> str | None:
+        """
+        Normaliza NIF/CIF/NIE para evitar duplicados por espacios,
+        guiones o minúsculas.
+        """
+
+        if not fiscal_id:
+            return None
+
+        return (
+            fiscal_id
+            .strip()
+            .upper()
+            .replace(" ", "")
+            .replace("-", "")
+        )
     @staticmethod
     def _infer_factusol_identification_type(fiscal_id: str | None) -> int | None:
         """
