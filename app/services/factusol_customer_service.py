@@ -51,26 +51,14 @@ class FactusolCustomerService:
         Devuelve:
         - found: true/false
         - customer: dict con columnas FactuSOL si existe
+        - DEBUG
         """
 
         clean_fiscal_id = self._clean_sql_value(fiscal_id)
 
         consulta = f"""
         SELECT TOP 1
-            CODCLI,
-            NIFCLI,
-            NOFCLI,
-            NOCCLI,
-            DOMCLI,
-            POBCLI,
-            CPOCLI,
-            PROCLI,
-            TELCLI,
-            MOVCLI,
-            PCOCLI,
-            EMACLI,
-            BANCLI,
-            SWFCLI
+        IFICLI
         FROM F_CLI
         WHERE NIFCLI = '{clean_fiscal_id}'
         """
@@ -255,8 +243,72 @@ class FactusolCustomerService:
             return 1
 
         return int(last_code) + 1
+    
+    @staticmethod
+    def _infer_factusol_identification_type(fiscal_id: str | None) -> int | None:
+        """
+        Devuelve el valor para IFICLI.
 
+        Según prueba visual en FactuSOL:
+        - IFICLI = 1 corresponde a N.I.F.
+        - Un CIF español tipo B00000001 se muestra como N.I.F.
+        - Por tanto, para NIF/CIF español informado usamos 1.
+        """
 
+        if not fiscal_id:
+            return None
+
+        clean_value = (
+            fiscal_id
+            .strip()
+            .upper()
+            .replace(" ", "")
+            .replace("-", "")
+        )
+
+        if not clean_value:
+            return None
+
+        return 1
+    @staticmethod
+    def _split_ccc(ccc: str | None) -> dict[str, str | None]:
+        """
+        Divide un C.C.C. español en columnas FactuSOL.
+
+        Formato esperado:
+        - 20 dígitos
+        - entidad: 4
+        - oficina: 4
+        - dígitos control: 2
+        - cuenta: 10
+        """
+
+        empty_result = {
+            "entity": None,
+            "office": None,
+            "control_digits": None,
+            "account": None,
+        }
+
+        if not ccc:
+            return empty_result
+
+        clean_ccc = (
+            ccc
+            .strip()
+            .replace(" ", "")
+            .replace("-", "")
+        )
+
+        if len(clean_ccc) != 20 or not clean_ccc.isdigit():
+            return empty_result
+
+        return {
+            "entity": clean_ccc[0:4],
+            "office": clean_ccc[4:8],
+            "control_digits": clean_ccc[8:10],
+            "account": clean_ccc[10:20],
+        }
     def _map_normalized_customer_to_factusol_record(
         self,
         customer: NormalizedCustomer,
@@ -267,6 +319,11 @@ class FactusolCustomerService:
 
         Solo usamos columnas ya inspeccionadas/confirmadas.
         """
+        normalized_fiscal_id = self._normalize_fiscal_id(customer.fiscal_id)
+        identification_type = self._infer_factusol_identification_type(
+            normalized_fiscal_id
+        )
+        ccc_parts = self._split_ccc(customer.ccc)
 
         return self._remove_empty_values([
             {
@@ -276,6 +333,10 @@ class FactusolCustomerService:
             {
                 "columna": "NIFCLI",
                 "dato": customer.fiscal_id,
+            },
+            {
+                "columna": "IFICLI",
+                "dato": identification_type,
             },
             {
                 "columna": "NOFCLI",
@@ -308,6 +369,26 @@ class FactusolCustomerService:
             {
                 "columna": "MOVCLI",
                 "dato": customer.mobile_phone or customer.phone,
+            },
+            {
+                "columna": "GIRCLI", 
+                "dato": customer.contact_phone,
+            },
+            {
+                "columna": "ENTCLI",
+                "dato": ccc_parts["entity"],
+            },
+            {
+                "columna": "OFICLI",
+                "dato": ccc_parts["office"],
+            },
+            {
+                "columna": "DCOCLI",
+                "dato": ccc_parts["control_digits"],
+            },
+            {
+                "columna": "CUECLI",
+                "dato": ccc_parts["account"],
             },
             {
                 "columna": "PCOCLI",
